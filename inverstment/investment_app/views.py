@@ -31,7 +31,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
             self.permission_classes = [permissions.IsAuthenticated]
         return super().get_permissions()
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='admin-list')
     def admin_list(self, request):
         if not request.user.is_staff:
             return Response(status=status.HTTP_403_FORBIDDEN)
