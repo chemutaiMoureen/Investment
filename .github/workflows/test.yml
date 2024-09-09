@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3]
+        python-version: [3.7, 3.8, 3.9, 3.10, 3.12]
 
     steps:
       - name: Checkout the repository
@@ -35,6 +35,8 @@ jobs:
 
       - name: List installed packages
         run: pip list
+      - name: Install pytest
+        run: pip install pytest
 
       - name: Run Tests
         run: |
