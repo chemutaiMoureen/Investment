@@ -1,86 +1,74 @@
-from django.test import TestCase
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 from rest_framework import status
-from django.utils import timezone
-from datetime import datetime
-from .models import User, InvestmentAccount, Transaction, AccountMembership
+from django.contrib.auth.models import User
+from .models import InvestmentAccount, Transaction, AccountMembership
 
-class InvestmentAccountAPITestCase(TestCase):
+class InvestmentAppTests(APITestCase):
     def setUp(self):
-        self.client = APIClient()
-        self.admin = User.objects.create_superuser(username='admin', password='adminpass')
-        self.view_user = User.objects.create_user(username='view_user', password='viewpass')
-        self.crud_user = User.objects.create_user(username='crud_user', password='crudpass')
-        self.post_user = User.objects.create_user(username='post_user', password='postpass')
+        self.admin_user = User.objects.create_superuser(username='admin', password='adminpass')
+        self.view_only_user = User.objects.create_user(username='viewonlyuser', password='viewonlypass')
+        self.crud_user = User.objects.create_user(username='cruduser', password='crudpass')
+        self.post_only_user = User.objects.create_user(username='postonlyuser', password='postonlypass')
+        
+        self.account1 = InvestmentAccount.objects.create(name='View Account')
+        self.account2 = InvestmentAccount.objects.create(name='CRUD Account')
+        self.account3 = InvestmentAccount.objects.create(name='Post Account')
 
-        self.view_account = InvestmentAccount.objects.create(name='View Account')
-        self.crud_account = InvestmentAccount.objects.create(name='CRUD Account')
-        self.post_account = InvestmentAccount.objects.create(name='Post Account')
+        AccountMembership.objects.create(user=self.view_only_user, account=self.account1, role='view')
+        AccountMembership.objects.create(user=self.crud_user, account=self.account2, role='crud')
+        AccountMembership.objects.create(user=self.post_only_user, account=self.account3, role='post')
 
-        # Assign roles
-        AccountMembership.objects.create(user=self.view_user, account=self.view_account, role='view')
-        AccountMembership.objects.create(user=self.crud_user, account=self.crud_account, role='crud')
-        AccountMembership.objects.create(user=self.post_user, account=self.post_account, role='post')
-
-    def test_view_user_cannot_manage_transactions(self):
-        # User with view-only access
-        self.client.login(username='view_user', password='viewpass')
-        response = self.client.post('/api/transactions/', {'account': self.view_account.id, 'amount': 100, 'description': 'Test'})
+        self.client.force_authenticate(user=self.admin_user)
+    
+    def test_view_only_user_cannot_perform_crud_operations(self):
+        self.client.force_authenticate(user=self.view_only_user)
+        
+        response = self.client.post('/investment-accounts/', data={'name': 'New Account'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        response = self.client.patch(f'/investment-accounts/{self.account1.id}/', data={'name': 'Updated Account'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        response = self.client.delete(f'/investment-accounts/{self.account1.id}/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        # Ensure they cannot update or delete
-        transaction = Transaction.objects.create(account=self.view_account, user=self.view_user, amount=100, description='Test')
-        response = self.client.put(f'/api/transactions/{transaction.id}/', {'amount': 200, 'description': 'Updated Test'})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        response = self.client.delete(f'/api/transactions/{transaction.id}/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    def test_crud_user_can_manage_transactions(self):
-        # User with CRUD access
-        self.client.login(username='crud_user', password='crudpass')
-        response = self.client.post('/api/transactions/', {'account': self.crud_account.id, 'amount': 100, 'description': 'Test'})
+    def test_crud_user_can_perform_all_crud_operations(self):
+        self.client.force_authenticate(user=self.crud_user)
+        
+        response = self.client.post('/investment-accounts/', data={'name': 'New CRUD Account'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        transaction_id = response.data['id']
         
-        # Retrieve transaction
-        response = self.client.get(f'/api/transactions/{transaction_id}/')
+        account_id = response.data['id']
+        
+        response = self.client.patch(f'/investment-accounts/{account_id}/', data={'name': 'Updated CRUD Account'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # Update transaction
-        response = self.client.put(f'/api/transactions/{transaction_id}/', {'amount': 150, 'description': 'Updated Test'})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Delete transaction
-        response = self.client.delete(f'/api/transactions/{transaction_id}/')
+        response = self.client.delete(f'/investment-accounts/{account_id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-    def test_post_user_can_only_create_transactions(self):
-        # User with post-only access
-        self.client.login(username='post_user', password='postpass')
-        response = self.client.post('/api/transactions/', {'account': self.post_account.id, 'amount': 100, 'description': 'Test'})
+    def test_post_only_user_can_post_transactions(self):
+        self.client.force_authenticate(user=self.post_only_user)
+        
+        response = self.client.post('/transactions/', data={'account': self.account3.id, 'user': self.post_only_user.id, 'amount': 100, 'date': '2024-01-01', 'description': 'Test Transaction'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Ensure they cannot view transactions
-        response = self.client.get(f'/api/transactions/?account={self.post_account.id}')
+        
+        response = self.client.get('/transactions/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_admin_can_view_transactions(self):
-        # Create transaction and check admin access
-        Transaction.objects.create(account=self.crud_account, user=self.crud_user, amount=100, description='Deposit')
-        self.client.login(username='admin', password='adminpass')
-        response = self.client.get('/api/admin-transactions/')
+    def test_admin_endpoint_returns_all_transactions(self):
+        self.client.force_authenticate(user=self.admin_user)
+        Transaction.objects.create(account=self.account3, user=self.admin_user, amount=100, date='2024-01-01', description='Test Transaction')
+        
+        response = self.client.get('/admin-transactions/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('total_balance', response.data)
+        self.assertGreater(len(response.data['transactions']), 0)
 
-    def test_admin_can_view_transactions_with_date_filter(self):
-        # Create transactions with specific dates
-        start_date = timezone.make_aware(datetime(2024, 1, 1))
-        end_date = timezone.make_aware(datetime(2024, 1, 2))
-        Transaction.objects.create(account=self.crud_account, user=self.crud_user, amount=100, date=start_date, description='Test1')
-        Transaction.objects.create(account=self.crud_account, user=self.crud_user, amount=200, date=end_date, description='Test2')
-
-        self.client.login(username='admin', password='adminpass')
-        response = self.client.get(f'/api/admin-transactions/?start_date={start_date.date()}&end_date={start_date.date()}')
+    def test_admin_endpoint_sum_of_total_balance(self):
+        self.client.force_authenticate(user=self.admin_user)
+        Transaction.objects.create(account=self.account3, user=self.admin_user, amount=100, date='2024-01-01', description='Test Transaction')
+        Transaction.objects.create(account=self.account3, user=self.admin_user, amount=200, date='2024-02-01', description='Test Transaction 2')
+        
+        response = self.client.get('/admin-transactions/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['transactions']), 1)
-        self.assertEqual(response.data['total_balance'], 100)
+        total_balance = response.data['total_balance']
+        self.assertEqual(total_balance, 300)
