@@ -1,0 +1,5 @@
+Requirement already satisfied: pytest in c:\investment\invest\lib\site-packages (8.3.2)
+Requirement already satisfied: iniconfig in c:\investment\invest\lib\site-packages (from pytest) (2.0.0)
+Requirement already satisfied: packaging in c:\investment\invest\lib\site-packages (from pytest) (24.1)
+Requirement already satisfied: pluggy<2,>=1.5 in c:\investment\invest\lib\site-packages (from pytest) (1.5.0)
+Requirement already satisfied: colorama in c:\investment\invest\lib\site-packages (from pytest) (0.4.6)
