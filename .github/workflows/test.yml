@@ -8,6 +8,24 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: investment
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 1689
+        options: >-
+          --health-cmd="pg_isready -U postgres" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+      env:
+      DJANGO_SETTINGS_MODULE: inverstment.settings
+      PYTHONPATH: ./inverstment
+      DATABASE_URL: postgres://postgres:1689@localhost:5432/investment
 
     steps:
       - name: Checkout the repository
