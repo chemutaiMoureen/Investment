@@ -18,14 +18,10 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 1689
         options: >-
-          --health-cmd="pg_isready -U postgres" 
-          --health-interval=10s 
-          --health-timeout=5s 
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
           --health-retries=5
-        env:
-          DJANGO_SETTINGS_MODULE: inverstment.settings
-          PYTHONPATH: ./inverstment
-          DATABASE_URL: postgres://postgres:1689@localhost:5432/investment
 
     steps:
       - name: Checkout the repository
@@ -40,9 +36,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-        working-directory: ./inverstment  # Set the correct working directory
+        working-directory: ./inverstment  # Ensure this directory is correct
 
       - name: Run Tests
         run: |
           pytest --maxfail=1 --disable-warnings -q
-        working-directory: ./inverstment  # 
+        working-directory: ./inverstment  # Ensure this directory is correct
+
+    env:
+      DJANGO_SETTINGS_MODULE: inverstment.settings
+      PYTHONPATH: ./inverstment
+      DATABASE_URL: postgres://postgres:1689@localhost:5432/investment
