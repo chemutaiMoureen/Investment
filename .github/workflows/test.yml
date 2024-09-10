@@ -8,8 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DJANGO_SETTINGS_MODULE: inverstment.settings
 
     steps:
       - name: Checkout the repository
@@ -26,5 +24,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Tests
+        env:
+          DJANGO_SETTINGS_MODULE: inverstment.settings
         run: |
           pytest --maxfail=1 --disable-warnings -q
