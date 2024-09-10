@@ -39,12 +39,12 @@ jobs:
 
       - name: Run Django Migrations
         env:
-          DJANGO_SETTINGS_MODULE: inverstment.settings  # Adjust to your Django settings module
+          DJANGO_SETTINGS_MODULE: investment.settings  # Adjust to your Django settings module
         run: |
           python manage.py migrate
 
       - name: Run Tests
         env:
-          DJANGO_SETTINGS_MODULE inverstment.settings  # Adjust to your Django settings module
+          DJANGO_SETTINGS_MODULE investment.settings  # Adjust to your Django settings module
         run: |
           pytest --maxfail=1 --disable-warnings -q
