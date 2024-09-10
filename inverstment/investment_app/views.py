@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import InvestmentAccount, Transaction
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
-from .permissions import IsViewUser, IsPostOnlyUser, IsCRUDUser
+from .permissions import IsAdminUser, IsViewUser, IsPostOnlyUser, IsCRUDUser
 from django.utils.dateparse import parse_date
 
 class InvestmentAccountViewSet(viewsets.ModelViewSet):
@@ -28,32 +28,35 @@ class TransactionViewSet(viewsets.ModelViewSet):
         if self.request.method == 'POST':
             self.permission_classes = [IsPostOnlyUser]
         elif self.request.method == 'GET':
-            self.permission_classes = [permissions.IsAuthenticated]
+            self.permission_classes = [IsViewUser]
+        elif self.request.method in ['PATCH', 'DELETE']:
+            self.permission_classes = [IsCRUDUser]
         return super().get_permissions()
 
-    @action(detail=False, methods=['get'], url_path='admin-list')
-    def admin_list(self, request):
-        if not request.user.is_staff:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
+# @action(detail=False, methods=['get'], url_path='admin-list', permission_classes=[IsAdminUser])
+def admin_list(self, request):
+    if not request.user.is_staff:
+        print(f"User: {request.user}, is_staff: {request.user.is_staff}")
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    
+    start_date = request.query_params.get('start_date')
+    end_date = request.query_params.get('end_date')
 
-        try:
-            if start_date:
-                start_date = parse_date(start_date)
-            if end_date:
-                end_date = parse_date(end_date)
-        except ValueError:
-            return Response({"detail": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        transactions = self.queryset
-        if start_date and end_date:
-            transactions = transactions.filter(date__range=[start_date, end_date])
-        
-        serializer = self.get_serializer(transactions, many=True)
-        total_balance = sum(tx.amount for tx in transactions)
-        return Response({
-            'transactions': serializer.data,
-            'total_balance': total_balance
-        })
+    try:
+        if start_date:
+            start_date = parse_date(start_date)
+        if end_date:
+            end_date = parse_date(end_date)
+    except ValueError:
+        return Response({"detail": "Invalid date format"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    transactions = self.queryset
+    if start_date and end_date:
+        transactions = transactions.filter(date__range=[start_date, end_date])
+    
+    serializer = self.get_serializer(transactions, many=True)
+    total_balance = sum(tx.amount for tx in transactions)
+    return Response({
+        'transactions': serializer.data,
+        'total_balance': total_balance
+    })

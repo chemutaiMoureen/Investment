@@ -20,3 +20,6 @@ class IsCRUDUser(permissions.BasePermission):
         if request.method in ['POST', 'PATCH', 'DELETE']:
             return request.user.is_authenticated and request.user.accountmembership_set.filter(role='crud').exists()
         return False
+class IsAdminUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_staff

@@ -4,10 +4,10 @@ from .views import InvestmentAccountViewSet, TransactionViewSet
 
 
 router = DefaultRouter()
-router.register(r'investment-accounts', InvestmentAccountViewSet)
-router.register(r'transactions', TransactionViewSet)
+router.register(r'investment-accounts', InvestmentAccountViewSet, basename='investment-account')
+router.register(r'transactions', TransactionViewSet, basename='transaction')
 
 urlpatterns = [
     path('', include(router.urls)),
-
+    
 ]
